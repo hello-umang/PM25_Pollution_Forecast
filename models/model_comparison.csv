@@ -1,0 +1,6 @@
+Model,MAE,RMSE,R2
+Random Forest (small),2.125,2.66,0.5936
+Decision Tree,2.382,2.989,0.4871
+Ridge Regression,2.394,3.005,0.4816
+Linear Regression,2.394,3.005,0.4816
+K-Nearest Neighbors,2.67,3.344,0.358

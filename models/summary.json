@@ -1,0 +1,42 @@
+{
+  "cleaning_log": {
+    "raw_rows": 17555,
+    "after_dedup": 17520,
+    "duplicates_removed": 35,
+    "missing_pm25_before": 175,
+    "final_rows": 17520
+  },
+  "best_model": "Random Forest (small)",
+  "results": [
+    {
+      "Model": "Linear Regression",
+      "MAE": 2.394,
+      "RMSE": 3.005,
+      "R2": 0.4816
+    },
+    {
+      "Model": "Ridge Regression",
+      "MAE": 2.394,
+      "RMSE": 3.005,
+      "R2": 0.4816
+    },
+    {
+      "Model": "Decision Tree",
+      "MAE": 2.382,
+      "RMSE": 2.989,
+      "R2": 0.4871
+    },
+    {
+      "Model": "Random Forest (small)",
+      "MAE": 2.125,
+      "RMSE": 2.66,
+      "R2": 0.5936
+    },
+    {
+      "Model": "K-Nearest Neighbors",
+      "MAE": 2.67,
+      "RMSE": 3.344,
+      "R2": 0.358
+    }
+  ]
+}

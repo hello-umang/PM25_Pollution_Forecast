@@ -1,152 +1,270 @@
+"""Build the capstone Jupyter notebook aligned to Project_Steps.pdf (no XGBoost)."""
+
+from pathlib import Path
+
 import nbformat as nbf
 
+ROOT = Path(__file__).resolve().parent
 nb = nbf.v4.new_notebook()
 cells = []
 
-cells.append(nbf.v4.new_markdown_cell("""# US PM2.5 Pollution Forecast — ML Capstone Project
+cells.append(
+    nbf.v4.new_markdown_cell(
+        """# US PM2.5 Pollution Forecast — ML Capstone Project
 
 **Business Problem:** Predict next-hour PM2.5 concentration for air monitoring stations to support public health advisories and pollution-risk alerts.
 
 **Target Users:** Environmental agencies, public health officials, city dashboards, and residents checking air quality.
 
-**Expected Output:** Next-hour PM2.5 forecast, pollution-risk category (Good/Moderate/Unhealthy), and station comparison chart.
+**Expected Output:** Next-hour PM2.5 forecast, pollution-risk category (Good / Moderate / Unhealthy), model comparison, and Streamlit dashboard.
 
-**ML Task:** Time-series regression.
+**ML Task:** Regression / time-series forecasting.
 
-**Dataset:** EPA Air Quality System (AQS) Data — hourly PM2.5 readings. (Sample data generated in this notebook mirrors AQS hourly file structure for two California stations, 1 year, for fast local execution. Swap in the real AQS API/download for production — see README.)
-"""))
+**Practical use case:** Hourly risk monitoring for two stations using EPA AQS-style observations + weather context.
 
-cells.append(nbf.v4.new_markdown_cell("## Step 1-2: Problem Definition & Data Collection\n\nSee README.md for dataset source details (EPA AQS: https://www.epa.gov/aqs/obtaining-aqs-data). This notebook uses `data/pm25_raw.csv`, a locally generated sample matching the AQS hourly schema (station_id, datetime, pm25, temperature_c, humidity_pct, wind_speed_mps) — 17,500+ rows across 2 stations."))
+**Dataset:** Educational sample in `data/pm25_raw.csv` mirroring EPA AQS hourly schema (parameter 88101). Source pattern: [EPA AQS](https://www.epa.gov/aqs/obtaining-aqs-data). ≥10,000 rows.
+"""
+    )
+)
 
-cells.append(nbf.v4.new_code_cell("""import pandas as pd
+cells.append(
+    nbf.v4.new_markdown_cell(
+        """## Step 1–2: Problem Definition & Data Collection
+
+| Item | Detail |
+|------|--------|
+| Industry problem | Air-quality forecasting for health advisories |
+| Task type | Regression / forecasting |
+| Collection method | Synthetic educational dataset generated with `generate_data.py` following EPA AQS hourly schema (offline, no API key) |
+| Official source pattern | EPA Air Quality System (AQS) |
+| Rows | 17,500+ hourly records, 2 stations, full year |
+"""
+    )
+)
+
+cells.append(
+    nbf.v4.new_code_cell(
+        """import json
+from pathlib import Path
+
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
+from IPython.display import Image, display
 
-df = pd.read_csv('../data/pm25_raw.csv', parse_dates=['datetime'])
-print(df.shape)
-df.head()"""))
+DATA = Path('../data')
+VIS = Path('../visuals')
+MOD = Path('../models')
+
+df = pd.read_csv(DATA / 'pm25_raw.csv', parse_dates=['datetime'])
+print('Shape:', df.shape)
+print('Stations:', df['station_id'].nunique())
+print('Date range:', df['datetime'].min(), '->', df['datetime'].max())
+df.head()"""
+    )
+)
 
 cells.append(nbf.v4.new_markdown_cell("## Step 3: Clean and Prepare the Data"))
-cells.append(nbf.v4.new_code_cell("""print('Duplicates:', df.duplicated().sum())
-print('Missing pm25:', df['pm25'].isna().sum())
+cells.append(
+    nbf.v4.new_code_cell(
+        """print('Duplicates:', int(df.duplicated().sum()))
+print('Missing pm25:', int(df['pm25'].isna().sum()))
 
 df = df.drop_duplicates()
-df['pm25'] = df.groupby('station_id')['pm25'].transform(lambda x: x.fillna(x.rolling(6, min_periods=1).mean()))
+df['station_id'] = df['station_id'].astype(str)
+df['datetime'] = pd.to_datetime(df['datetime'])
+for col in ['pm25', 'temperature_c', 'humidity_pct', 'wind_speed_mps']:
+    df[col] = pd.to_numeric(df[col], errors='coerce')
+
+df = df.sort_values(['station_id', 'datetime']).reset_index(drop=True)
+df['pm25'] = df.groupby('station_id')['pm25'].transform(
+    lambda x: x.fillna(x.rolling(6, min_periods=1).mean())
+)
 df['pm25'] = df['pm25'].fillna(df['pm25'].mean())
+for col in ['temperature_c', 'humidity_pct', 'wind_speed_mps']:
+    df[col] = df.groupby('station_id')[col].transform(lambda x: x.fillna(x.median()))
+    df[col] = df[col].fillna(df[col].median())
 
 def cap_outliers(s):
     lo, hi = s.quantile(0.01), s.quantile(0.99)
     return s.clip(lo, hi)
-df['pm25'] = df.groupby('station_id')['pm25'].transform(cap_outliers)
 
-df = df.sort_values(['station_id','datetime']).reset_index(drop=True)
-print('Cleaned shape:', df.shape)"""))
+for col in ['pm25', 'temperature_c', 'humidity_pct', 'wind_speed_mps']:
+    df[col] = df.groupby('station_id')[col].transform(cap_outliers)
 
-cells.append(nbf.v4.new_markdown_cell("## Step 4: Exploratory Data Analysis\nSee `visuals/` folder for saved charts: daily trend, hourly pattern, correlation matrix, distribution."))
-cells.append(nbf.v4.new_code_cell("""from IPython.display import Image
-Image("../visuals/daily_pm25_trend.png")"""))
-cells.append(nbf.v4.new_code_cell("""Image("../visuals/hourly_pattern.png")"""))
-cells.append(nbf.v4.new_code_cell("""Image("../visuals/correlation_matrix.png")"""))
-cells.append(nbf.v4.new_markdown_cell("**Key Insights:**\n- PM2.5 shows clear seasonality: higher in winter months, lower in summer.\n- Diurnal pattern: elevated PM2.5 during morning/evening rush hours.\n- Temperature and humidity show mild correlation with PM2.5; wind speed shows a weak negative correlation (more wind disperses pollution)."))
+print('Rows after clean:', len(df))
+print('Remaining missing pm25:', int(df['pm25'].isna().sum()))
+df.describe()"""
+    )
+)
 
-cells.append(nbf.v4.new_markdown_cell("## Step 5: Feature Engineering"))
-cells.append(nbf.v4.new_code_cell("""df['hour'] = df['datetime'].dt.hour
-df['month'] = df['datetime'].dt.month
-df['dayofweek'] = df['datetime'].dt.dayofweek
-df['is_weekend'] = (df['dayofweek'] >= 5).astype(int)
-df['season'] = df['month'].map(lambda m: (m % 12) // 3)
-df = df.sort_values(['station_id','datetime'])
-df['pm25_lag1'] = df.groupby('station_id')['pm25'].shift(1)
-df['pm25_lag24'] = df.groupby('station_id')['pm25'].shift(24)
-df['pm25_roll6'] = df.groupby('station_id')['pm25'].transform(lambda x: x.rolling(6).mean())
-df['pm25_roll24'] = df.groupby('station_id')['pm25'].transform(lambda x: x.rolling(24).mean())
-df['target_next_hour_pm25'] = df.groupby('station_id')['pm25'].shift(-1)
+cells.append(
+    nbf.v4.new_markdown_cell(
+        """## Step 4: Exploratory Data Analysis
 
-df_model = df.dropna(subset=['pm25_lag1','pm25_lag24','pm25_roll6','pm25_roll24','target_next_hour_pm25']).copy()
-print(df_model.shape)
-df_model.head()"""))
-cells.append(nbf.v4.new_markdown_cell("No target leakage: lag/rolling features use only past values; the target is the *next* hour, shifted forward, so no future information leaks into features."))
+Saved charts live in `visuals/`. Key questions: distributions, correlations, trends, outliers, target behaviour.
+"""
+    )
+)
 
-cells.append(nbf.v4.new_markdown_cell("## Step 6: Split and Validate the Data\nTime-based 80:20 split (no shuffling) — appropriate for time-series forecasting."))
-cells.append(nbf.v4.new_code_cell("""from sklearn.preprocessing import StandardScaler
+for img, insight in [
+    (
+        "daily_pm25_trend.png",
+        "**Insight:** Clear seasonal structure — winter months tend to show higher daily average PM2.5 than summer.",
+    ),
+    (
+        "hourly_pattern.png",
+        "**Insight:** Diurnal pattern with elevated averages near typical morning/evening activity periods.",
+    ),
+    (
+        "correlation_matrix.png",
+        "**Insight:** Weather variables show modest linear correlation with PM2.5; non-linear/lag effects matter more.",
+    ),
+    (
+        "pm25_distribution.png",
+        "**Insight:** Right-skewed concentration distribution — most hours are moderate, with a long upper tail.",
+    ),
+    (
+        "monthly_pm25_trend.png",
+        "**Insight:** Monthly averages confirm seasonal cycling useful for calendar features.",
+    ),
+    (
+        "pm25_vs_weather.png",
+        "**Insight:** Scatter relationships with temperature, humidity, and wind are noisy but directionally sensible.",
+    ),
+    (
+        "pm25_boxplot_outliers.png",
+        "**Insight:** Station-level spread and residual extreme values motivate percentile capping in cleaning.",
+    ),
+]:
+    cells.append(nbf.v4.new_code_cell(f'display(Image(str(VIS / "{img}")))'))
+    cells.append(nbf.v4.new_markdown_cell(insight))
 
-features = ['hour','month','dayofweek','is_weekend','season',
-            'pm25_lag1','pm25_lag24','pm25_roll6','pm25_roll24',
-            'temperature_c','humidity_pct','wind_speed_mps']
+cells.append(nbf.v4.new_markdown_cell("## Step 5: Feature Engineering & Selection"))
+cells.append(
+    nbf.v4.new_code_cell(
+        """# Reload engineered feature table produced by eda_and_model.py
+feat = pd.read_csv(DATA / 'pm25_cleaned_features.csv', parse_dates=['datetime'])
+print('Engineered shape:', feat.shape)
+print('Columns:', list(feat.columns))
 
-df_model = df_model.sort_values('datetime')
-split_idx = int(len(df_model) * 0.8)
-X = df_model[features]
-y = df_model['target_next_hour_pm25']
+# Leakage guard: lags/rolling are past-only; target is next hour
+assert 'target_next_hour_pm25' in feat.columns
+feat[['datetime', 'pm25', 'pm25_lag1', 'pm25_lag24', 'pm25_roll6', 'target_next_hour_pm25']].head(10)"""
+    )
+)
 
-X_train, X_test = X.iloc[:split_idx], X.iloc[split_idx:]
-y_train, y_test = y.iloc[:split_idx], y.iloc[split_idx:]
+cells.append(
+    nbf.v4.new_markdown_cell(
+        """Features include:
+- datetime parts + cyclical encodings (`hour_sin/cos`, `month_sin/cos`)
+- lag/rolling PM2.5 statistics
+- weather raw values + bins + interactions
+- categorical station / bins (one-hot in training pipeline)
 
-scaler = StandardScaler()
-X_train_s = scaler.fit_transform(X_train)
-X_test_s = scaler.transform(X_test)
-print(X_train.shape, X_test.shape)"""))
+**No target leakage:** lag/rolling use only past values; label is `shift(-1)` next-hour PM2.5.
+"""
+    )
+)
 
-cells.append(nbf.v4.new_markdown_cell("## Step 7-9: Train Multiple Models, Tune, Evaluate & Compare\n\nLight-weight models only were used (no XGBoost/heavy boosting) to keep resource usage minimal, as required."))
-cells.append(nbf.v4.new_code_cell("""from sklearn.linear_model import LinearRegression, Ridge
-from sklearn.tree import DecisionTreeRegressor
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.neighbors import KNeighborsRegressor
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+cells.append(
+    nbf.v4.new_markdown_cell(
+        """## Step 6: Split and Validate
 
-models = {
-    'Linear Regression': LinearRegression(),
-    'Ridge Regression': Ridge(alpha=1.0),
-    'Decision Tree': DecisionTreeRegressor(max_depth=8, random_state=42),
-    'Random Forest (small)': RandomForestRegressor(n_estimators=40, max_depth=8, n_jobs=-1, random_state=42),
-    'K-Nearest Neighbors': KNeighborsRegressor(n_neighbors=7),
-}
+Time-based **80:20** split (no shuffle). Tree models also use **TimeSeriesSplit** (3 folds). Preprocessing scalers / encoders are fit on training data only inside the pipeline script.
+"""
+    )
+)
 
-results = []
-for name, model in models.items():
-    if name in ['K-Nearest Neighbors', 'Ridge Regression', 'Linear Regression']:
-        model.fit(X_train_s, y_train); pred = model.predict(X_test_s)
-    else:
-        model.fit(X_train, y_train); pred = model.predict(X_test)
-    mae = mean_absolute_error(y_test, pred)
-    rmse = np.sqrt(mean_squared_error(y_test, pred))
-    r2 = r2_score(y_test, pred)
-    results.append({'Model': name, 'MAE': round(mae, 3), 'RMSE': round(rmse, 3), 'R2': round(r2, 4)})
+cells.append(
+    nbf.v4.new_code_cell(
+        """summary = json.loads((MOD / 'summary.json').read_text())
+print(json.dumps(summary['split'], indent=2))
+print('Train/test rows from cleaned feature file chronological split:')
+feat_sorted = feat.sort_values('datetime')
+split_idx = int(len(feat_sorted) * 0.8)
+print('train', split_idx, 'test', len(feat_sorted) - split_idx)"""
+    )
+)
 
-results_df = pd.DataFrame(results).sort_values('RMSE')
-results_df"""))
-cells.append(nbf.v4.new_markdown_cell("**Hyperparameter tuning note:** Random Forest was tuned with a small `n_estimators=40, max_depth=8` (light Grid Search over 2-3 values each was used to keep runtime minimal — see `eda_and_model.py` for the full pipeline). For production, expand the grid or use Optuna."))
+cells.append(
+    nbf.v4.new_markdown_cell(
+        """## Step 7–9: Train, Tune, Evaluate & Compare
 
-cells.append(nbf.v4.new_markdown_cell("## Step 9 (cont.): Model Comparison Chart & Actual vs Predicted"))
-cells.append(nbf.v4.new_code_cell("""Image("../visuals/model_comparison_rmse.png")"""))
-cells.append(nbf.v4.new_code_cell("""Image("../visuals/actual_vs_predicted.png")"""))
-cells.append(nbf.v4.new_code_cell("""Image("../visuals/feature_importance.png")"""))
+Light scikit-learn models only: Linear, Ridge, ElasticNet, Decision Tree, Random Forest (small), KNN, Linear SVR, MLP (small).  
+**No XGBoost / LightGBM / CatBoost / heavy GBM.**
 
-cells.append(nbf.v4.new_markdown_cell("""## Step 10: Results, Business Interpretation & Recommendations
+Hyperparameter tuning uses **RandomizedSearchCV + TimeSeriesSplit** on Decision Tree and Random Forest.
 
-**Best-performing model:** Random Forest (small) — lowest RMSE and MAE among tested models.
+Metrics: MAE, MSE, RMSE, R², train/test gap, timing.
+"""
+    )
+)
 
-**Business interpretation:** The model captures both seasonal (winter-high) and diurnal (rush-hour) pollution patterns using lag/rolling features, enabling a 1-hour-ahead PM2.5 forecast good enough to drive a pollution-risk alert (Good/Moderate/Unhealthy) for the dashboard.
+cells.append(
+    nbf.v4.new_code_cell(
+        """cmp = pd.read_csv(MOD / 'model_comparison.csv')
+display(cmp)
+print('Best model:', summary['best_model'])
+print('Best metrics:', summary['best_metrics'])"""
+    )
+)
 
-**Model limitations:**
-- Trained on 1 year of 2 California stations; may not generalize to other regions/climates.
-- Synthetic seasonal/diurnal patterns approximate but do not replace real AQS data with wildfire smoke events, traffic anomalies, etc.
-- No exogenous weather forecast features (only historical weather) — real deployment should pull forecast weather via a weather API.
+for img in [
+    "model_comparison_rmse.png",
+    "actual_vs_predicted.png",
+    "feature_importance.png",
+    "error_analysis.png",
+]:
+    cells.append(nbf.v4.new_code_cell(f'display(Image(str(VIS / "{img}")))'))
 
-**Recommendations for improvement:**
-1. Replace sample data with real EPA AQS hourly downloads/API (see README).
-2. Add more stations and multiple years for better generalization.
-3. Add real-time weather forecast features.
-4. Explore boosting models (XGBoost/LightGBM) once heavier compute is available.
-5. Retrain periodically (e.g. weekly) as new AQS data arrives."""))
+cells.append(
+    nbf.v4.new_markdown_cell(
+        """## Step 10: Results, Business Interpretation & Recommendations
 
-cells.append(nbf.v4.new_markdown_cell("""## Step 11: Dashboard
-A lightweight Streamlit dashboard is provided in `dashboard/app.py`. Run with:
-```
-streamlit run dashboard/app.py
-```"""))
+**Best-performing model** is selected by lowest test RMSE (see `models/summary.json`).
 
-nb['cells'] = cells
-with open('notebooks/PM25_Forecast_Capstone.ipynb', 'w') as f:
+**Business interpretation:** Next-hour forecasts can drive station-level risk flags and short-term advisories. Lagged PM2.5 and short rolling means typically dominate; weather provides secondary context.
+
+**Error analysis:** Residual plots highlight where predictions under/over-shoot; absolute-error tails show rare spike hours are harder.
+
+**Limitations & recommendations** are listed in the README and `summary.json`. Dashboard: `streamlit run dashboard/app.py`.
+"""
+    )
+)
+
+cells.append(
+    nbf.v4.new_code_cell(
+        """print('Limitations:')
+for x in summary['limitations']:
+    print('-', x)
+print('\\nRecommendations:')
+for x in summary['recommendations']:
+    print('-', x)
+preds = pd.read_csv(MOD / 'predictions.csv', parse_dates=['datetime'])
+preds.head()"""
+    )
+)
+
+cells.append(
+    nbf.v4.new_markdown_cell(
+        """## Step 11: GitHub Deliverables Checklist
+
+- [x] Project overview & business use case (README)
+- [x] Dataset source + collection method
+- [x] Cleaning, EDA visuals, engineered features
+- [x] Multiple models + tuning + comparison table
+- [x] Final evaluation artifacts (`models/`)
+- [x] Streamlit dashboard
+- [x] `requirements.txt` + run instructions
+- [x] No secrets / API keys committed
+"""
+    )
+)
+
+nb["cells"] = cells
+out = ROOT / "notebooks" / "PM25_Forecast_Capstone.ipynb"
+out.parent.mkdir(parents=True, exist_ok=True)
+with open(out, "w", encoding="utf-8") as f:
     nbf.write(nb, f)
-print("notebook written")
+print(f"notebook written: {out}")

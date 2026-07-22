@@ -4,39 +4,222 @@
     "after_dedup": 17520,
     "duplicates_removed": 35,
     "missing_pm25_before": 175,
-    "final_rows": 17520
+    "final_rows_after_clean": 17520,
+    "note": "Class imbalance N/A (regression). Scaling fit on train only.",
+    "model_rows_after_feature_dropna": 17470
   },
-  "best_model": "Random Forest (small)",
+  "split": {
+    "strategy": "time-based 80/20 (no shuffle)",
+    "train_rows": 13976,
+    "test_rows": 3494,
+    "cv": "TimeSeriesSplit n_splits=3 (tree models + tuning)"
+  },
+  "features": {
+    "numeric": [
+      "hour",
+      "month",
+      "day",
+      "dayofweek",
+      "is_weekend",
+      "season",
+      "hour_sin",
+      "hour_cos",
+      "month_sin",
+      "month_cos",
+      "pm25_lag1",
+      "pm25_lag3",
+      "pm25_lag24",
+      "pm25_roll6",
+      "pm25_roll24",
+      "pm25_roll6_std",
+      "temperature_c",
+      "humidity_pct",
+      "wind_speed_mps",
+      "temp_x_humidity",
+      "pm_proxy_weather"
+    ],
+    "categorical": [
+      "station_id",
+      "temp_bin",
+      "wind_bin"
+    ],
+    "target": "target_next_hour_pm25",
+    "leakage_guard": "Lags/rolling use past values only; target is next hour shift(-1)"
+  },
+  "models_trained": [
+    "Linear Regression",
+    "Ridge Regression",
+    "Linear SVR",
+    "ElasticNet",
+    "Random Forest",
+    "Random Forest (Tuned)",
+    "Decision Tree (Tuned)",
+    "Decision Tree",
+    "MLP Neural Net",
+    "K-Nearest Neighbors"
+  ],
+  "best_model": "Linear Regression",
+  "best_metrics": {
+    "MAE": 2.193,
+    "MSE": 7.544,
+    "RMSE": 2.747,
+    "R2": 0.5977,
+    "Train_RMSE": 2.579,
+    "Overfit_Gap_RMSE": -0.168
+  },
   "results": [
     {
       "Model": "Linear Regression",
-      "MAE": 2.394,
-      "RMSE": 3.005,
-      "R2": 0.4816
+      "MAE": 2.193,
+      "MSE": 7.544,
+      "RMSE": 2.747,
+      "R2": 0.5977,
+      "Train_RMSE": 2.579,
+      "Train_R2": 0.7924,
+      "Overfit_Gap_RMSE": -0.168,
+      "CV_RMSE_mean": NaN,
+      "Train_time_sec": 0.075,
+      "Predict_time_sec": 0.0093
     },
     {
       "Model": "Ridge Regression",
-      "MAE": 2.394,
-      "RMSE": 3.005,
-      "R2": 0.4816
+      "MAE": 2.193,
+      "MSE": 7.543,
+      "RMSE": 2.747,
+      "R2": 0.5977,
+      "Train_RMSE": 2.579,
+      "Train_R2": 0.7924,
+      "Overfit_Gap_RMSE": -0.168,
+      "CV_RMSE_mean": NaN,
+      "Train_time_sec": 0.035,
+      "Predict_time_sec": 0.0085
+    },
+    {
+      "Model": "Linear SVR",
+      "MAE": 2.203,
+      "MSE": 7.605,
+      "RMSE": 2.758,
+      "R2": 0.5945,
+      "Train_RMSE": 2.582,
+      "Train_R2": 0.792,
+      "Overfit_Gap_RMSE": -0.176,
+      "CV_RMSE_mean": NaN,
+      "Train_time_sec": 0.216,
+      "Predict_time_sec": 0.0099
+    },
+    {
+      "Model": "ElasticNet",
+      "MAE": 2.212,
+      "MSE": 7.652,
+      "RMSE": 2.766,
+      "R2": 0.5919,
+      "Train_RMSE": 2.584,
+      "Train_R2": 0.7917,
+      "Overfit_Gap_RMSE": -0.182,
+      "CV_RMSE_mean": NaN,
+      "Train_time_sec": 0.092,
+      "Predict_time_sec": 0.0086
+    },
+    {
+      "Model": "Random Forest",
+      "MAE": 2.227,
+      "MSE": 7.732,
+      "RMSE": 2.781,
+      "R2": 0.5877,
+      "Train_RMSE": 2.319,
+      "Train_R2": 0.8321,
+      "Overfit_Gap_RMSE": -0.462,
+      "CV_RMSE_mean": 3.27,
+      "Train_time_sec": 2.84,
+      "Predict_time_sec": 0.0261
+    },
+    {
+      "Model": "Random Forest (Tuned)",
+      "MAE": 2.231,
+      "MSE": 7.734,
+      "RMSE": 2.781,
+      "R2": 0.5876,
+      "Train_RMSE": 2.505,
+      "Train_R2": 0.8041,
+      "Overfit_Gap_RMSE": -0.276,
+      "CV_RMSE_mean": 3.33,
+      "Train_time_sec": 18.754,
+      "Predict_time_sec": NaN
+    },
+    {
+      "Model": "Decision Tree (Tuned)",
+      "MAE": 2.28,
+      "MSE": 8.087,
+      "RMSE": 2.844,
+      "R2": 0.5688,
+      "Train_RMSE": 2.552,
+      "Train_R2": 0.7967,
+      "Overfit_Gap_RMSE": -0.292,
+      "CV_RMSE_mean": 3.348,
+      "Train_time_sec": 1.383,
+      "Predict_time_sec": NaN
     },
     {
       "Model": "Decision Tree",
-      "MAE": 2.382,
-      "RMSE": 2.989,
-      "R2": 0.4871
+      "MAE": 2.376,
+      "MSE": 8.962,
+      "RMSE": 2.994,
+      "R2": 0.5221,
+      "Train_RMSE": 2.411,
+      "Train_R2": 0.8186,
+      "Overfit_Gap_RMSE": -0.583,
+      "CV_RMSE_mean": 3.785,
+      "Train_time_sec": 0.205,
+      "Predict_time_sec": 0.0037
     },
     {
-      "Model": "Random Forest (small)",
-      "MAE": 2.125,
-      "RMSE": 2.66,
-      "R2": 0.5936
+      "Model": "MLP Neural Net",
+      "MAE": 2.429,
+      "MSE": 9.154,
+      "RMSE": 3.025,
+      "R2": 0.5119,
+      "Train_RMSE": 2.508,
+      "Train_R2": 0.8038,
+      "Overfit_Gap_RMSE": -0.517,
+      "CV_RMSE_mean": NaN,
+      "Train_time_sec": 3.007,
+      "Predict_time_sec": 0.0097
     },
     {
       "Model": "K-Nearest Neighbors",
-      "MAE": 2.67,
-      "RMSE": 3.344,
-      "R2": 0.358
+      "MAE": 2.784,
+      "MSE": 12.151,
+      "RMSE": 3.486,
+      "R2": 0.352,
+      "Train_RMSE": 2.442,
+      "Train_R2": 0.814,
+      "Overfit_Gap_RMSE": -1.044,
+      "CV_RMSE_mean": NaN,
+      "Train_time_sec": 0.024,
+      "Predict_time_sec": 0.3755
     }
+  ],
+  "tuning": {
+    "method": "RandomizedSearchCV + TimeSeriesSplit",
+    "candidates": [
+      "Random Forest",
+      "Decision Tree"
+    ],
+    "note": "Light models only \u2014 no XGBoost/LightGBM/CatBoost/heavy GBM"
+  },
+  "business_interpretation": "Next-hour PM2.5 forecasts support health advisories and station-level risk flags. Lagged PM2.5 and short rolling means dominate predictive signal; weather adds secondary context.",
+  "limitations": [
+    "Included dataset is synthetic/educational (EPA AQS schema style), not live AQS pulls.",
+    "One-hour horizon only; multi-horizon forecasting not included.",
+    "No live weather-forecast exogenous inputs.",
+    "Station coverage limited to two demo stations.",
+    "Light sklearn models only (no heavy gradient boosting libraries)."
+  ],
+  "recommendations": [
+    "Replace sample data with real EPA AQS hourly downloads/API for production.",
+    "Add more stations and multi-year history.",
+    "Use forecast weather features from a weather API.",
+    "Extend to 6h/24h horizons and calibrated risk alerts.",
+    "Retrain periodically as new observations arrive."
   ]
 }

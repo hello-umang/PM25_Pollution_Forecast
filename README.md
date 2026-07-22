@@ -1,166 +1,262 @@
-# US PM2.5 Pollution Forecast — ML Capstone Project
+# PM2.5 Pollution Forecast Using Machine Learning
 
-## 1. Project Overview
-This project builds an end-to-end machine learning pipeline to forecast **next-hour PM2.5 pollution concentration** at US air quality monitoring stations, using time-series regression. It includes data cleaning, EDA, feature engineering, model training/comparison, and an interactive Streamlit dashboard.
+![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)
+![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-orange.svg)
+![License](https://img.shields.io/badge/License-Educational-green.svg)
 
-## 2. Business Use Case
-- **Problem:** Predict the next hour (or next day) PM2.5 concentration for an air monitoring station.
-- **Target users:** Environmental agencies, public health officials, city/regional dashboards, and the general public checking local air quality.
-- **Expected output:** PM2.5 forecast, pollution-risk category (Good / Moderate / Unhealthy for Sensitive Groups / Unhealthy), station comparison, and actual-vs-predicted graph.
-- **Practical use case:** Early-warning alerts for high-pollution periods, supporting public health advisories (e.g. advising sensitive groups to limit outdoor activity), and city-level air quality dashboards.
-- **Scope:** One US state (California, sample), 2 stations, 1 year of hourly data (~17,500 rows).
+End-to-end **regression / time-series forecasting** capstone: predict **next-hour PM2.5** from EPA AQS-style hourly air-quality + weather features, with EDA, multi-model training, hyperparameter tuning, evaluation, and a Streamlit dashboard.
 
-## 3. Dataset Source
-- **Official source:** EPA Air Quality System (AQS) Data, US Environmental Protection Agency — https://www.epa.gov/aqs/obtaining-aqs-data
-  - Hourly and daily data files, and the **AQS API**, are available directly from the EPA.
-  - To pull real data: register for an AQS API key at https://aqs.epa.gov/data/api and query hourly PM2.5 (`param=88101`) for your state/county/site of interest.
-- **This repository ships with locally generated sample data** (`data/pm25_raw.csv`) that mirrors the AQS hourly schema (station_id, datetime, pm25, temperature_c, humidity_pct, wind_speed_mps) for 2 California station IDs across all of 2023 (~17,500 rows), so the project can be run immediately without API keys or network access. Swap this file for a real AQS export to go to production — the pipeline (`eda_and_model.py`) will work unchanged as long as column names match.
+> **Light scikit-learn models only** — no XGBoost, LightGBM, CatBoost, or heavy gradient-boosting libraries.
 
-## 4. Data-Cleaning Steps
-1. Removed duplicate rows.
-2. Filled missing PM2.5 values using a 6-hour rolling mean per station (fallback: overall mean).
-3. Capped outliers at the 1st/99th percentile per station (winsorization).
-4. Corrected data types (datetime parsing).
-5. Removed leakage-prone raw index columns; final feature set built only from historical (lagged/rolling) values.
+---
 
-## 5. EDA & Visualisations
-Located in `visuals/`:
-- `daily_pm25_trend.png` — Daily average PM2.5 per station across the year (seasonality visible).
-- `hourly_pattern.png` — Average PM2.5 by hour of day (rush-hour peaks).
-- `correlation_matrix.png` — Correlation between PM2.5, temperature, humidity, wind speed.
-- `pm25_distribution.png` — Histogram of PM2.5 readings.
+## 1. Problem Definition (Step 1)
 
-**Key insights:**
-- Winter months show higher average PM2.5 than summer (seasonal pattern).
-- Morning/evening rush hours show elevated PM2.5 (diurnal/traffic pattern).
-- Wind speed correlates negatively with PM2.5 (dispersion effect); temperature/humidity show mild relationships.
+| Item | Detail |
+|------|--------|
+| **Business problem** | Agencies need short-horizon PM2.5 forecasts to issue health advisories and monitor stations |
+| **ML task** | Regression / forecasting |
+| **Target users** | Environmental agencies, pollution control boards, smart-city teams, researchers, public-health planners |
+| **Expected output** | Next-hour PM2.5 (µg/m³), risk category, model comparison, dashboard |
+| **Practical use case** | Station-level early warning and operational air-quality monitoring |
 
-## 6. Feature Engineering
-- Time features: hour, month, day-of-week, weekend flag, season.
-- Lag features: `pm25_lag1` (previous hour), `pm25_lag24` (same hour previous day).
-- Rolling features: 6-hour and 24-hour rolling averages.
-- Target: `target_next_hour_pm25` (PM2.5 shifted **forward** by 1 hour — ensures no leakage since it uses only past/current data to predict the future).
-- Derived label: `pollution_risk` category (Good / Moderate / Unhealthy(SG) / Unhealthy) based on standard PM2.5 breakpoints.
+**Target variable:** `target_next_hour_pm25` (next hour’s PM2.5 concentration).
 
-## 7. Models Tested
-Light-weight models only were used (no XGBoost/LightGBM/CatBoost), per project scope, to minimize compute:
-- Linear Regression
-- Ridge Regression
-- Decision Tree Regressor
-- Random Forest Regressor (small: 40 trees, depth 8)
-- K-Nearest Neighbors Regressor
+---
 
-Validation strategy: **time-based 80:20 split** (no shuffling), appropriate for time-series forecasting. Preprocessing (scaling) fit only on training data.
+## 2. Data Collection (Step 2)
 
-## 8. Evaluation Results
-See `models/model_comparison.csv` and `visuals/model_comparison_rmse.png`.
+### Official source pattern
+- **United States EPA — Air Quality System (AQS)**  
+  https://www.epa.gov/aqs/obtaining-aqs-data  
+- Parameter code **88101** (PM2.5 Local Conditions)
 
-| Model | MAE | RMSE | R² |
-|---|---|---|---|
-| Random Forest (small) | 2.125 | 2.660 | 0.594 |
-| Decision Tree | 2.382 | 2.989 | 0.487 |
-| Linear Regression | 2.394 | 3.005 | 0.482 |
-| Ridge Regression | 2.394 | 3.005 | 0.482 |
-| K-Nearest Neighbors | 2.670 | 3.344 | 0.358 |
+### Dataset included (educational / offline)
+| File | Description |
+|------|-------------|
+| `data/pm25_raw.csv` | Synthetic hourly dataset (≥10k rows) matching AQS-style schema |
+| `data/pm25_cleaned_features.csv` | Cleaned + engineered modeling table |
 
-**Best model: Random Forest (small)** — lowest RMSE/MAE, highest R².
+**Collection method:** `generate_data.py` creates a reproducible synthetic year of hourly data for **2 stations** so the project runs without API keys. Swap in real AQS downloads/API for production.
 
-## 9. Final Comparison & Business Interpretation
-The Random Forest model best captures the combined seasonal + diurnal + short-term autocorrelation structure of PM2.5, using lag/rolling features as the strongest predictors (see `visuals/feature_importance.png`). This is sufficient to power a 1-hour-ahead pollution-risk alert.
+| Column | Description |
+|--------|-------------|
+| `station_id` | Monitoring station identifier |
+| `datetime` | Observation timestamp |
+| `pm25` | PM2.5 concentration (µg/m³) |
+| `temperature_c` | Temperature (°C) |
+| `humidity_pct` | Relative humidity (%) |
+| `wind_speed_mps` | Wind speed (m/s) |
 
-**Model limitations:**
-- Based on 1 year, 2 stations (California, sample) — limited geographic/temporal generalization.
-- Uses historical (not forecast) weather; a production system should pull forecast weather data.
-- No boosting models tested (XGBoost/LightGBM) — left as a recommended next step once more compute is available.
+---
 
-**Recommendations for improvement:**
-1. Connect to the real EPA AQS API for live/historical data at scale.
-2. Add more stations/years for broader generalization.
-3. Incorporate weather **forecast** (not just historical) features.
-4. Test gradient boosting models (XGBoost/LightGBM) for potential accuracy gains.
-5. Retrain on a schedule (e.g., weekly) as new AQS data becomes available.
+## 3. Project Structure
 
-## 10. Dashboard / Demo
-A Streamlit dashboard (`dashboard/app.py`) shows:
-- Best-performing model and metrics
-- Current pollution-risk status per station
-- PM2.5 trend and actual-vs-predicted chart
-- Model comparison chart
-- Feature importance
-- Station comparison
-
-## 11. Project Structure
-```
-pm25_project/
-├── README.md
-├── requirements.txt
-├── generate_data.py          # generates sample AQS-style dataset
-├── eda_and_model.py           # cleaning, EDA, feature engineering, training, evaluation
-├── build_notebook.py          # builds the Jupyter notebook programmatically
+```text
+PM25_Pollution_Forecast/
 ├── data/
 │   ├── pm25_raw.csv
 │   └── pm25_cleaned_features.csv
+├── dashboard/
+│   └── app.py
+├── models/
+│   ├── best_model.pkl
+│   ├── model_comparison.csv
+│   ├── predictions.csv
+│   ├── feature_importance.csv
+│   └── summary.json
 ├── notebooks/
 │   └── PM25_Forecast_Capstone.ipynb
-├── visuals/
-│   ├── daily_pm25_trend.png
-│   ├── hourly_pattern.png
-│   ├── correlation_matrix.png
-│   ├── pm25_distribution.png
-│   ├── model_comparison_rmse.png
-│   ├── actual_vs_predicted.png
-│   └── feature_importance.png
-├── models/
-│   ├── model_comparison.csv
-│   └── summary.json
-└── dashboard/
-    └── app.py                  # Streamlit dashboard
+├── visuals/                      # EDA + evaluation charts
+├── generate_data.py
+├── eda_and_model.py
+├── build_notebook.py
+├── requirements.txt
+├── LICENSE
+└── README.md
 ```
 
-## 12. Instructions to Run
+---
 
-### Setup
-```bash
-python -m venv venv
-source venv/bin/activate   # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-```
+## 4. Machine Learning Workflow (Steps 3–9)
 
-### Regenerate data (optional — data already included)
-```bash
-python generate_data.py
-```
+### Step 3 — Clean & prepare
+- Remove duplicates  
+- Handle missing PM2.5 (station rolling mean → global mean)  
+- Correct dtypes / sort by station + time  
+- Percentile outlier capping (1st–99th) per station  
+- Encode categoricals + scale numerics **inside train-only pipelines**  
+- Class imbalance: **N/A** (regression)
 
-### Run the full pipeline (cleaning, EDA, training, evaluation)
-```bash
-python eda_and_model.py
-```
+### Step 4 — EDA
+Charts in `visuals/`:
+- Daily / monthly trends, hourly pattern  
+- PM2.5 distribution & station boxplots  
+- Correlation matrix  
+- PM2.5 vs weather scatter panel  
 
-### Open the notebook
-```bash
-jupyter notebook notebooks/PM25_Forecast_Capstone.ipynb
-```
+Each chart’s key insight is documented in the notebook.
 
-### Run the dashboard
+### Step 5 — Feature engineering
+- Calendar: hour, day, month, weekday, weekend, season  
+- Cyclical encodings: `hour_sin/cos`, `month_sin/cos`  
+- Lags / rolling: lag-1/3/24, roll-6/24 mean, roll-6 std  
+- Bins: temperature & wind bins  
+- Interactions: temp×humidity, humidity/(wind+ε)  
+- Target: next-hour PM2.5 (`shift(-1)`)  
+- **Leakage guard:** lags/rolling use past values only
+
+### Step 6 — Split & validate
+- Chronological **80:20** train/test split (no shuffle)  
+- **TimeSeriesSplit** (3 folds) for tree-model CV and tuning  
+- Scaler / one-hot fit on training folds only
+
+### Step 7 — Models trained (light sklearn only)
+1. Linear Regression  
+2. Ridge Regression  
+3. ElasticNet  
+4. Decision Tree  
+5. Random Forest (small)  
+6. K-Nearest Neighbors  
+7. Linear SVR  
+8. MLP Neural Net (small)  
+
+Tuned variants of Decision Tree and Random Forest are also reported.
+
+### Step 8 — Hyperparameter tuning
+- **RandomizedSearchCV** + **TimeSeriesSplit** on Decision Tree & Random Forest  
+- Search space examples: `n_estimators`, `max_depth`, `min_samples_leaf`, `max_features`, `min_samples_split`
+
+### Step 9 — Evaluation
+| Metric | Purpose |
+|--------|---------|
+| MAE / MSE / RMSE | Error magnitude |
+| R² | Explained variance |
+| Train vs test RMSE gap | Over/underfitting check |
+| CV RMSE (trees) | Time-series stability |
+| Train / predict time | Operational cost |
+
+Artifacts:
+- `models/model_comparison.csv`  
+- `models/predictions.csv`  
+- `models/best_model.pkl`  
+- `models/summary.json`  
+- `visuals/model_comparison_rmse.png`, `actual_vs_predicted.png`, `feature_importance.png`, `error_analysis.png`
+
+---
+
+## 5. Dashboard (Step 10)
+
 ```bash
 streamlit run dashboard/app.py
 ```
 
-## 13. Publishing to GitHub
-1. Create a new **public** repository on GitHub.
-2. `git init`, `git add .`, `git commit -m "Initial commit: PM2.5 forecast capstone"`.
-3. `git remote add origin <your-repo-url>` and `git push -u origin main`.
-4. Confirm no passwords, API keys, or confidential data are included (this repo contains none — sample data only).
-5. Add the repository link and dashboard/demo link to your submission (Google Classroom).
-
-## 14. Submission Checklist
-- [x] Public GitHub repository link
-- [x] Jupyter Notebook / Python project (`notebooks/`, `eda_and_model.py`)
-- [x] EDA and visualisations (`visuals/`)
-- [x] Model comparison table (`models/model_comparison.csv`)
-- [x] Final model evaluation (`models/summary.json`, README section 8-9)
-- [x] Dashboard / working demo (`dashboard/app.py`)
-- [x] README with findings, limitations, and business recommendations (this file)
+Shows best-model KPIs, station filters, trends, comparison table, feature importance, error analysis, limitations, and recommendations.
 
 ---
-*No passwords, API keys, or confidential/personal data are included in this repository.*
+
+## 6. Setup & Run
+
+```bash
+# clone
+git clone https://github.com/hello-umang/PM25_Pollution_Forecast.git
+cd PM25_Pollution_Forecast
+
+# install
+pip install -r requirements.txt
+
+# optional: regenerate sample data
+python generate_data.py
+
+# full clean → EDA → train → tune → evaluate → save artifacts
+python eda_and_model.py
+
+# rebuild notebook stubs that display saved artifacts
+python build_notebook.py
+
+# dashboard
+streamlit run dashboard/app.py
+```
+
+### Google Colab
+
+```python
+!git clone https://github.com/hello-umang/PM25_Pollution_Forecast.git
+%cd PM25_Pollution_Forecast
+!pip install -r requirements.txt
+!python eda_and_model.py
+```
+
+---
+
+## 7. Results & Business Interpretation
+
+After `eda_and_model.py`, open:
+- `models/model_comparison.csv` — full leaderboard  
+- `models/summary.json` — best model, metrics, cleaning log, recommendations  
+
+**Interpretation:** Next-hour forecasts support short-term health messaging and station monitoring. Lagged PM2.5 and short rolling means usually dominate; weather adds secondary context. Residual/error plots show harder cases on spike hours.
+
+**Latest run (light models):** best = **Linear Regression** — RMSE **2.747**, MAE **2.193**, R² **0.598** (see `models/model_comparison.csv` for the full leaderboard).
+
+---
+
+## 8. Limitations
+
+- Included data is **synthetic/educational** (AQS schema style), not a live AQS extract  
+- Single **1-hour** horizon  
+- Only **two** demo stations  
+- No live weather-forecast exogenous inputs  
+- Spike / anomaly hours remain harder to predict
+
+## 9. Recommendations
+
+1. Replace sample data with real EPA AQS hourly downloads/API  
+2. Add more stations and multi-year history  
+3. Add forecast weather features from a weather API  
+4. Extend to 6h/24h horizons and calibrated risk alerts  
+5. Retrain periodically as new observations arrive  
+
+---
+
+## 10. GitHub Publish Checklist (Step 11)
+
+- [x] Project overview & business use case  
+- [x] Dataset source & collection method  
+- [x] Cleaning steps  
+- [x] EDA visualisations  
+- [x] Models tested + tuning  
+- [x] Evaluation / comparison table  
+- [x] Dashboard  
+- [x] README + `requirements.txt` + run instructions  
+- [x] No passwords, API keys, or personal data  
+
+**Repository:** https://github.com/hello-umang/PM25_Pollution_Forecast  
+
+---
+
+## Final Deliverables Mapping
+
+| Deliverable | Location |
+|-------------|----------|
+| Public GitHub repo | link above |
+| Jupyter notebook / Python project | `notebooks/`, `*.py` |
+| EDA & visualisations | `visuals/` |
+| Model comparison table | `models/model_comparison.csv` |
+| Final model evaluation | `models/summary.json`, `best_model.pkl`, `predictions.csv` |
+| Dashboard | `dashboard/app.py` |
+| README findings / limits / recommendations | this file |
+
+---
+
+## License
+
+Educational / academic use.
+
+## Acknowledgements
+
+EPA AQS, scikit-learn, pandas, NumPy, Matplotlib, Seaborn, Streamlit.
+
+## Author
+
+**Umang** — Machine Learning Capstone Project

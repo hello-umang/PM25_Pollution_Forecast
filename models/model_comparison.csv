@@ -1,6 +1,11 @@
-Model,MAE,RMSE,R2
-Random Forest (small),2.125,2.66,0.5936
-Decision Tree,2.382,2.989,0.4871
-Ridge Regression,2.394,3.005,0.4816
-Linear Regression,2.394,3.005,0.4816
-K-Nearest Neighbors,2.67,3.344,0.358
+Model,MAE,MSE,RMSE,R2,Train_RMSE,Train_R2,Overfit_Gap_RMSE,CV_RMSE_mean,Train_time_sec,Predict_time_sec,Best_Params
+Linear Regression,2.193,7.544,2.747,0.5977,2.579,0.7924,-0.168,,0.075,0.0093,
+Ridge Regression,2.193,7.543,2.747,0.5977,2.579,0.7924,-0.168,,0.035,0.0085,
+Linear SVR,2.203,7.605,2.758,0.5945,2.582,0.792,-0.176,,0.216,0.0099,
+ElasticNet,2.212,7.652,2.766,0.5919,2.584,0.7917,-0.182,,0.092,0.0086,
+Random Forest,2.227,7.732,2.781,0.5877,2.319,0.8321,-0.462,3.27,2.84,0.0261,
+Random Forest (Tuned),2.231,7.734,2.781,0.5876,2.505,0.8041,-0.276,3.33,18.754,,"{""n_estimators"": 30, ""min_samples_leaf"": 2, ""max_features"": 0.8, ""max_depth"": 6}"
+Decision Tree (Tuned),2.28,8.087,2.844,0.5688,2.552,0.7967,-0.292,3.348,1.383,,"{""min_samples_split"": 5, ""min_samples_leaf"": 5, ""max_depth"": 6}"
+Decision Tree,2.376,8.962,2.994,0.5221,2.411,0.8186,-0.583,3.785,0.205,0.0037,
+MLP Neural Net,2.429,9.154,3.025,0.5119,2.508,0.8038,-0.517,,3.007,0.0097,
+K-Nearest Neighbors,2.784,12.151,3.486,0.352,2.442,0.814,-1.044,,0.024,0.3755,

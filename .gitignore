@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local caches / logs
+*.log
+.cache/
+.pytest_cache/
+
+# Large local re-runs (keep committed sample artifacts)
+# Uncomment if regenerating large intermediate files locally:
+# data/pm25_cleaned_features.csv

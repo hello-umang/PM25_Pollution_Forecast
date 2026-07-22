@@ -178,14 +178,32 @@ python build_notebook.py
 streamlit run dashboard/app.py
 ```
 
-### Google Colab
+### Google Colab (class demo)
+
+**Easiest:** open the one-cell reset notebook from GitHub:
+
+https://colab.research.google.com/github/hello-umang/PM25_Pollution_Forecast/blob/main/notebooks/Colab_Nuclear_Reset.ipynb
+
+Or in Colab: **File → Open notebook → GitHub** → `hello-umang/PM25_Pollution_Forecast` → open `notebooks/Colab_Nuclear_Reset.ipynb` → **Runtime → Run all**.
+
+That notebook:
+1. Deletes any old `PM25_Pollution_Forecast` folder in Colab  
+2. Fresh-clones this repo  
+3. Installs dependencies  
+4. Regenerates data + trains models  
+5. Prints a full process log, comparison table, and charts  
+
+Manual Colab cells (alternative):
 
 ```python
 !git clone https://github.com/hello-umang/PM25_Pollution_Forecast.git
 %cd PM25_Pollution_Forecast
-!pip install -r requirements.txt
+!pip install -q numpy pandas matplotlib seaborn scikit-learn joblib scipy plotly
+!python generate_data.py
 !python eda_and_model.py
 ```
+
+> Streamlit dashboard is meant for local run (`streamlit run dashboard/app.py`), not Colab.
 
 ---
 
